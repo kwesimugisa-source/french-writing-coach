@@ -4,10 +4,7 @@ import OpenAI from "openai";
 export const dynamic = "force-dynamic";
 
 type WritingType = "lettre" | "opinion" | "creative" | "argumentatif";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+type WritingLevel = "B1" | "B2" | "C1";
 
 const fallbackTopics: Record<WritingType, string[]> = {
   lettre: [
@@ -19,25 +16,16 @@ const fallbackTopics: Record<WritingType, string[]> = {
     "les réseaux sociaux et la communication",
     "le télétravail",
     "les téléphones intelligents à l'école",
-    "la place de l'intelligence artificielle dans la vie quotidienne",
-    "les transports publics dans les grandes villes",
-    "l'importance de protéger l'environnement au quotidien",
   ],
   creative: [
     "une journée ordinaire qui devient étrange",
     "une rencontre inattendue dans le métro",
     "un objet perdu qui change tout",
-    "un message reçu au mauvais moment",
-    "un trajet banal qui devient mémorable",
-    "un matin où tout semble normal, puis quelque chose bascule",
   ],
   argumentatif: [
     "faut-il limiter l'usage du téléphone dans les lieux publics",
     "les villes devraient-elles réduire la place de la voiture",
-    "l'intelligence artificielle est-elle bénéfique à l'éducation",
-    "faut-il interdire les réseaux sociaux aux jeunes enfants",
     "les transports publics devraient-ils être gratuits",
-    "le travail à distance est-il meilleur que le travail en présentiel",
   ],
 };
 
@@ -59,7 +47,12 @@ function fallbackFor(type: WritingType): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     const writingType = body?.writingType as WritingType | undefined;
+    const level = body?.level as WritingLevel | undefined;
+
+    const safeLevel: WritingLevel =
+      level === "B1" || level === "C1" ? level : "B2";
 
     if (!writingType || !fallbackTopics[writingType]) {
       return NextResponse.json({
@@ -68,6 +61,7 @@ export async function POST(req: Request) {
       });
     }
 
+    // keep lettre stable (no AI)
     if (writingType === "lettre") {
       return NextResponse.json({
         topic: fallbackFor("lettre"),
@@ -75,19 +69,44 @@ export async function POST(req: Request) {
       });
     }
 
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json({
+        topic: fallbackFor(writingType),
+        source: "fallback",
+      });
+    }
+
+    const client = new OpenAI({ apiKey });
+
     const prompts: Record<Exclude<WritingType, "lettre">, string> = {
       opinion:
-        "Donne un seul thème clair, actuel et accessible pour un texte d'opinion en français niveau B2. Réponds uniquement avec le thème, sans phrase complète, sans explication, sans liste, sans guillemets.",
+        `Donne un seul thème clair pour un texte d'opinion en français niveau ${safeLevel}. ` +
+        `B1: sujet simple du quotidien. ` +
+        `B2: sujet actuel accessible. ` +
+        `C1: sujet nuancé, social ou culturel. ` +
+        `Réponds uniquement avec le thème, sans phrase, sans explication.`,
+
       creative:
-        "Donne un seul thème narratif inspirant pour une courte histoire en français niveau B2. Réponds uniquement avec le thème, sans phrase complète, sans explication, sans liste, sans guillemets.",
+        `Donne un seul thème narratif pour une histoire en français niveau ${safeLevel}. ` +
+        `B1: simple et concret. ` +
+        `B2: un peu original. ` +
+        `C1: plus subtil ou psychologique. ` +
+        `Réponds uniquement avec le thème, sans phrase, sans explication.`,
+
       argumentatif:
-        "Donne un seul sujet clair et discutable pour un essai argumentatif en français niveau B2/C1. Réponds uniquement avec le sujet, sans phrase complète, sans explication, sans liste, sans guillemets.",
+        `Donne un seul sujet pour un essai argumentatif en français niveau ${safeLevel}. ` +
+        `B1: question simple. ` +
+        `B2: sujet de société accessible. ` +
+        `C1: sujet complexe ou abstrait. ` +
+        `Réponds uniquement avec le sujet, sans phrase, sans explication.`,
     };
 
     const response = await client.responses.create({
-      model: "gpt-5.2",
+      model: "gpt-4.1-mini", // stable + fast
       instructions:
-        "Tu génères uniquement un sujet très court en français. Aucun commentaire. Aucune introduction. Aucun numéro. Aucun emoji.",
+        "Tu génères uniquement un sujet très court en français. Aucun commentaire.",
       input: prompts[writingType as Exclude<WritingType, "lettre">],
     });
 

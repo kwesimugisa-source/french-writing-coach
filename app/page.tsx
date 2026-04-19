@@ -412,12 +412,14 @@ type DrillExercise = {
 };
 
 type WritingType = "lettre" | "opinion" | "creative" | "argumentatif";
-
+type WritingLevel = "B1" | "B2" | "C1";
 
 export default function FrenchWritingCoach() {
   const router = useRouter();
   const [writingType, setWritingType] = useState<WritingType>("lettre");
   const [dynamicTopic, setDynamicTopic] = useState<string | undefined>(undefined);
+  const [recentTopics, setRecentTopics] = useState<string[]>([]); 
+  const [writingLevel, setWritingLevel] = useState<WritingLevel>("B2");
 
   // date key
   const today = new Date();
@@ -480,9 +482,9 @@ export default function FrenchWritingCoach() {
     }
   }, []);
 
-  useEffect(() => {
-  fetchDynamicTopic(writingType);
-}, [writingType, tone]);
+useEffect(() => {
+  fetchDynamicTopic(writingType, writingLevel);
+}, [writingType, writingLevel]);
 
   // exam timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -566,11 +568,13 @@ export default function FrenchWritingCoach() {
     return { label: score, classes: base };
   }
   
-  async function fetchDynamicTopic(type: WritingType) {
+async function fetchDynamicTopic(type: WritingType, level: WritingLevel) {
   if (type === "lettre") {
     setDynamicTopic(undefined);
     return;
   }
+
+  const currentType = type;
 
   try {
     const res = await fetch("/api/topic", {
@@ -578,7 +582,7 @@ export default function FrenchWritingCoach() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ writingType: type }),
+      body: JSON.stringify({ writingType: type, level }),
     });
 
     if (!res.ok) {
@@ -587,11 +591,46 @@ export default function FrenchWritingCoach() {
     }
 
     const data = await res.json();
-    setDynamicTopic(typeof data?.topic === "string" ? data.topic : undefined);
+    const newTopic = data?.topic;
+
+    if (!newTopic || currentType !== type) return;
+
+    const isDuplicate = recentTopics.includes(newTopic);
+
+    if (isDuplicate) {
+      console.log("duplicate topic detected, retrying...");
+
+      const retryRes = await fetch("/api/topic", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ writingType: type, level }),
+      });
+
+      if (!retryRes.ok) return;
+
+      const retryData = await retryRes.json();
+      const retryTopic = retryData?.topic;
+
+      if (!retryTopic) return;
+
+      console.log("topic source:", retryData?.source);
+
+      setDynamicTopic(retryTopic);
+      setRecentTopics((prev) => [retryTopic, ...prev].slice(0, 5));
+      return;
+    }
+
+    console.log("topic source:", data?.source);
+
+    setDynamicTopic(newTopic);
+    setRecentTopics((prev) => [newTopic, ...prev].slice(0, 5));
   } catch {
     setDynamicTopic(undefined);
   }
 }
+
 function formatCorrections(c: any): string {
   if (!c) return "";
 
@@ -1307,6 +1346,26 @@ function saveDrillSession(session: {
       <SelectItem value="opinion">Opinion</SelectItem>
       <SelectItem value="creative">Histoire / créatif</SelectItem>
       <SelectItem value="argumentatif">Essai argumentatif</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
+
+<div className="flex flex-col gap-2 text-sm">
+  <label className="text-slate-400 text-xs uppercase tracking-wide">
+    Niveau
+  </label>
+  <Select
+    value={writingLevel}
+    onValueChange={(v) => setWritingLevel(v as WritingLevel)}
+    disabled={loading || (examMode && timerRunning)}
+  >
+    <SelectTrigger className="bg-slate-900/60 border-slate-600/50 rounded-xl text-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent className="bg-slate-800 text-slate-100 border-slate-600">
+      <SelectItem value="B1">B1</SelectItem>
+      <SelectItem value="B2">B2</SelectItem>
+      <SelectItem value="C1">C1</SelectItem>
     </SelectContent>
   </Select>
 </div>

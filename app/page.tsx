@@ -58,7 +58,12 @@ function countWords(text: string) {
 }
 
 // --- utility: generate today's prompt (expanded bank) ---
-function getDailyPrompt(dateKey: string, tone: "formel" | "informel") {
+function getDailyPrompt(
+  dateKey: string,
+  tone: "formel" | "informel",
+  writingType: WritingType = "lettre",
+  topic?: string
+) {
   const formalPrompts = [
     {
       title: "Plainte logement – Chauffage défectueux",
@@ -265,10 +270,84 @@ function getDailyPrompt(dateKey: string, tone: "formel" | "informel") {
     },
   ];
 
+  const opinionTopics = [
+    "les réseaux sociaux et la communication",
+    "le télétravail",
+    "les téléphones intelligents à l'école",
+    "la place de l'intelligence artificielle dans la vie quotidienne",
+    "les transports publics dans les grandes villes",
+    "l'importance de protéger l'environnement au quotidien",
+  ];
+
+  const creativeTopics = [
+    "une journée ordinaire qui devient étrange",
+    "une rencontre inattendue dans le métro",
+    "un objet perdu qui change tout",
+    "un message reçu au mauvais moment",
+    "un trajet banal qui devient mémorable",
+    "un matin où tout semble normal, puis quelque chose bascule",
+  ];
+
+  const argumentativeTopics = [
+    "faut-il limiter l'usage du téléphone dans les lieux publics",
+    "les villes devraient-elles réduire la place de la voiture",
+    "l'intelligence artificielle est-elle bénéfique à l'éducation",
+    "faut-il interdire les réseaux sociaux aux jeunes enfants",
+    "les transports publics devraient-ils être gratuits",
+    "le travail à distance est-il meilleur que le travail en présentiel",
+  ];
+
   const hash = Array.from(dateKey).reduce(
     (acc, c) => acc + c.charCodeAt(0),
     0
   );
+
+  if (writingType === "lettre") {
+    const list = tone === "formel" ? formalPrompts : informalPrompts;
+    const idx = hash % list.length;
+    return list[idx];
+  }
+
+  if (writingType === "opinion") {
+    const subject = topic || opinionTopics[hash % opinionTopics.length];
+    return {
+      title: "Exprimer une opinion",
+      body:
+        `Certaines personnes pensent que ${subject} apportent surtout des avantages, tandis que d'autres croient que cela crée davantage de problèmes.\n\n` +
+        `Donnez votre opinion en expliquant clairement votre point de vue avec des exemples concrets.\n\n` +
+        `Écrivez entre 180–220 mots.\n\n` +
+        `Adaptez votre registre (${tone}).`,
+    };
+  }
+
+  if (writingType === "creative") {
+    const subject = topic || creativeTopics[hash % creativeTopics.length];
+    return {
+      title: "Rédaction créative",
+      body:
+        `Racontez une histoire sur le thème suivant : ${subject}.\n\n` +
+        `Développez une situation, un problème et une résolution.\n\n` +
+        `Écrivez entre 180–220 mots.\n\n` +
+        `Adaptez votre registre (${tone}).`,
+    };
+  }
+
+  if (writingType === "argumentatif") {
+    const subject =
+      topic || argumentativeTopics[hash % argumentativeTopics.length];
+    return {
+      title: "Essai argumentatif",
+      body:
+        `Sujet : ${subject} ?\n\n` +
+        `Présentez une argumentation structurée :\n` +
+        `- une introduction\n` +
+        `- deux arguments développés\n` +
+        `- une conclusion\n\n` +
+        `Écrivez entre 200–250 mots.\n\n` +
+        `Adaptez votre registre (${tone}).`,
+    };
+  }
+
   const list = tone === "formel" ? formalPrompts : informalPrompts;
   const idx = hash % list.length;
   return list[idx];
@@ -332,10 +411,14 @@ type DrillExercise = {
   uiId?: string;
 };
 
+type WritingType = "lettre" | "opinion" | "creative" | "argumentatif";
+
 
 export default function FrenchWritingCoach() {
-const router = useRouter();
- 
+  const router = useRouter();
+  const [writingType, setWritingType] = useState<WritingType>("lettre");
+  const [dynamicTopic, setDynamicTopic] = useState<string | undefined>(undefined);
+
   // date key
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -381,7 +464,7 @@ const router = useRouter();
   const [showHistory, setShowHistory] = useState(false);
 
   // prompt and word count
-  const prompt = getDailyPrompt(dateKey, tone);
+  const prompt = getDailyPrompt(dateKey, tone, writingType, dynamicTopic);
   const targetRange = getWordTargetRange(prompt.body);
   const wordCount = countWords(userText);
 
@@ -396,6 +479,10 @@ const router = useRouter();
       console.warn("Could not load history:", err);
     }
   }, []);
+
+  useEffect(() => {
+  fetchDynamicTopic(writingType);
+}, [writingType, tone]);
 
   // exam timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -479,6 +566,32 @@ const router = useRouter();
     return { label: score, classes: base };
   }
   
+  async function fetchDynamicTopic(type: WritingType) {
+  if (type === "lettre") {
+    setDynamicTopic(undefined);
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/topic", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ writingType: type }),
+    });
+
+    if (!res.ok) {
+      setDynamicTopic(undefined);
+      return;
+    }
+
+    const data = await res.json();
+    setDynamicTopic(typeof data?.topic === "string" ? data.topic : undefined);
+  } catch {
+    setDynamicTopic(undefined);
+  }
+}
 function formatCorrections(c: any): string {
   if (!c) return "";
 
@@ -1177,7 +1290,26 @@ function saveDrillSession(session: {
                 </SelectContent>
               </Select>
             </div>
-
+<div className="flex flex-col gap-2 text-sm">
+  <label className="text-slate-400 text-xs uppercase tracking-wide">
+    Type de texte
+  </label>
+  <Select
+    value={writingType}
+    onValueChange={(v) => setWritingType(v as WritingType)}
+    disabled={loading || (examMode && timerRunning)}
+  >
+    <SelectTrigger className="bg-slate-900/60 border-slate-600/50 rounded-xl text-slate-100 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent className="bg-slate-800 text-slate-100 border-slate-600">
+      <SelectItem value="lettre">Lettre</SelectItem>
+      <SelectItem value="opinion">Opinion</SelectItem>
+      <SelectItem value="creative">Histoire / créatif</SelectItem>
+      <SelectItem value="argumentatif">Essai argumentatif</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
             {/* exam mode controls */}
             <div className="flex flex-col gap-2 text-sm">
               <label className="text-slate-400 text-xs uppercase tracking-wide flex items-center gap-2">

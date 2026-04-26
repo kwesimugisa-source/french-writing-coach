@@ -701,7 +701,7 @@ function formatCorrections(c: any): string {
     setErrorMsg(null);
 
     try {
-      const res = await fetch("https://chezctvicky.ca/api/analyze.php", {
+      const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: userText, tone }),
@@ -764,7 +764,7 @@ function formatCorrections(c: any): string {
     setDrillError(null);
 
     try {
-      const res = await fetch("https://chezctvicky.ca/api/drill.php", {
+      const res = await fetch("/api/drill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -818,7 +818,7 @@ function formatCorrections(c: any): string {
   async function handleMoreForCategory(catName: string) {
     try {
       setMoreLoadingCat(catName);
-      const res = await fetch("https://chezctvicky.ca/api/drill-more.php", {
+      const res = await fetch("/api/drill-more", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

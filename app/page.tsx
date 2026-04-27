@@ -697,6 +697,7 @@ function formatCorrections(c: any): string {
   // --- API calls ---
 
   async function handleAnalyze() {
+    console.log("ANALYZE CLICKED");
     setLoading(true);
     setErrorMsg(null);
 

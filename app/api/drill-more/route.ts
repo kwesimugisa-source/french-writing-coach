@@ -34,35 +34,34 @@ export async function POST(req: Request) {
       "Tu es un professeur de français (B1–C1). Tu génères des exercices QCM clairs, sans ambiguïté, avec une seule bonne réponse.";
 
     let user =
-      `Génère 8 exercices supplémentaires sous forme de QCM pour pratiquer : "${category}".\n\n` +
-      `Contexte (texte de l'apprenant) :\n${text}\n\n` +
-      `Règles OBLIGATOIRES:\n` +
-      `- Chaque exercice DOIT avoir un CONTEXTE clair (1–2 phrases) + une phrase à compléter.\n` +
-      `- Le contexte doit rendre UNE SEULE réponse possible.\n` +
-      `- Si la catégorie concerne les temps (présent / imparfait / passé composé), ajoute un marqueur de temps explicite.\n` +
-      `- Utilise ____ dans la phrase.\n` +
-      `- 3 choix, UNE seule bonne réponse.\n` +
-      `- Fournis une explication courte.\n` +
-      `- Retourne UNIQUEMENT du JSON valide.\n\n` +
-      `Format JSON EXACT:\n` +
-      `{\n` +
-      `  "exercises": [\n` +
-      `    {\n` +
-      `      "title": "Titre court",\n` +
-      `      "context": "1–2 phrases",\n` +
-      `      "q": "Phrase avec ____",\n` +
-      `      "choices": ["...", "...", "..."],\n` +
-      `      "answer": "...",\n` +
-      `      "explanation": "...",\n` +
-      `      "category": "${category}",\n` +
-      `      "type": "mcq"\n` +
-      `    }\n` +
-      `  ]\n` +
-      `}`;
-
-    if (tone) {
-      user += `\nTon demandé: ${tone}`;
-    }
+  `Crée 8 exercices QCM ciblés pour corriger ce problème précis : "${category}".\n\n` +
+  `Texte original de l'apprenant :\n${text}\n\n` +
+  `Ton demandé : ${tone || "non précisé"}\n\n` +
+  `Objectif : les exercices doivent attaquer directement cette faiblesse, pas être génériques.\n` +
+  `Utilise des pièges réalistes basés sur les erreurs probables de l'apprenant.\n\n` +
+  `Règles OBLIGATOIRES:\n` +
+  `- Chaque exercice DOIT avoir un contexte clair (1–2 phrases) + une phrase à compléter.\n` +
+  `- Le contexte doit rendre UNE SEULE réponse possible.\n` +
+  `- Utilise ____ dans la phrase.\n` +
+  `- 3 choix, UNE seule bonne réponse.\n` +
+  `- Les mauvais choix doivent ressembler aux erreurs que l'apprenant fait ou pourrait faire.\n` +
+  `- Fournis une explication courte.\n` +
+  `- Retourne UNIQUEMENT du JSON valide.\n\n` +
+  `Format JSON EXACT:\n` +
+  `{\n` +
+  `  "exercises": [\n` +
+  `    {\n` +
+  `      "title": "Titre court",\n` +
+  `      "context": "1–2 phrases",\n` +
+  `      "q": "Phrase avec ____",\n` +
+  `      "choices": ["...", "...", "..."],\n` +
+  `      "answer": "...",\n` +
+  `      "explanation": "...",\n` +
+  `      "category": "${category}",\n` +
+  `      "type": "mcq"\n` +
+  `    }\n` +
+  `  ]\n` +
+  `}`;
 
     const response = await client.responses.create({
       model: "gpt-4.1-mini",

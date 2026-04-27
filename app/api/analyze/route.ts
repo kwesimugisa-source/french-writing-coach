@@ -73,6 +73,11 @@ export async function POST(req: Request) {
 
     const text = typeof body?.text === "string" ? body.text : "";
     const tone = body?.tone === "informel" ? "informel" : "formel";
+    const promptTitle =
+  typeof body?.promptTitle === "string" ? body.promptTitle : "";
+
+const promptBody =
+  typeof body?.promptBody === "string" ? body.promptBody : "";
 
     if (!text.trim()) {
       return NextResponse.json({
@@ -155,8 +160,10 @@ RÈGLE CRITIQUE POUR "natural":
 "(a) Version Québec\\n<texte complet réécrit>\\n\\n(b) Version France\\n<texte complet réécrit>"
 `,
       input:
-        `Registre demandé : ${tone}\n\n` +
-        `Texte de l'apprenant (à corriger ET à réécrire intégralement) :\n\n${text}`,
+  `Réponds uniquement en JSON valide.\n\n` +
+  `Sujet demandé : ${promptTitle}\n${promptBody}\n\n` +
+  `Registre demandé : ${tone}\n\n` +
+  `Texte de l'apprenant (à corriger ET à réécrire intégralement) :\n\n${text}`,
       text: {
         format: {
           type: "json_object",

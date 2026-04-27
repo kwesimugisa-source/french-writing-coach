@@ -120,7 +120,7 @@ type DeepAnalysisResponse = {
   generatedExercises: GeneratedExercise[];
 };
 
-const API_URL = "https://chezctvicky.ca/api/deep-analysis.php";
+const API_URL = "/api/deep-analysis";
 
 const TEMPLATES: Template[] = [
   {
@@ -226,6 +226,7 @@ function levelBadgeClasses(level: string) {
 }
 
 export default function DeepAnalysisPage() {
+   console.log("DEEP ANALYSIS NEW VERSION LOADED");
   const router = useRouter();
 
   const [pressureMode, setPressureMode] = useState(true);
